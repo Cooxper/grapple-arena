@@ -1,226 +1,163 @@
+# ══════════════════════════════════════════════
+#  main.py  –  Boucle principale du jeu
+# ══════════════════════════════════════════════
+
 import pygame
-import random
+from reste import (
+    SCREEN_W, SCREEN_H, WORLD_W, WORLD_H,
+    BG_COL, HUD_COL, WHITE, WALL_COL, WALL_EDGE,
+    FINISH_COL, FINISH_EDG, GRAP_COL
+)
+from map import walls, FINISH, generate_map
+from tee import Joueur
 
+# ─── Initialisation ──────────────────────────
 pygame.init()
-
-
-SCREEN_W, SCREEN_H = 900, 600
 screen = pygame.display.set_mode((SCREEN_W, SCREEN_H))
-pygame.display.set_caption("Grapple Arena Solo – Gravité & Caméra")
+pygame.display.set_caption("Grapple Arena")
 clock = pygame.time.Clock()
-font = pygame.font.SysFont(None, 22)
 
-
-WHITE = (240, 240, 240)
-BLACK = (0, 0, 0)
-BLUE = (0, 160, 255)
-
-
-WORLD_W, WORLD_H = 2400, 1600
-
-
-player = pygame.Rect(200, 200, 24, 24)
-vel_x = 0
-vel_y = 0
-player.x = 800
-player.y = 660
-
-SPEED = 6
-GRAVITY = 0.5
-JUMP_POWER = -10
-on_ground = False
-
-
-
-grapple_active = False
-grapple_point = None
-GRAPPLE_RANGE = 800
-GRAPPLE_FORCE = 1.8
-
-
-
-camera_x = 0
-camera_y = 0
-
-
-walls = []
-
-def generate_map():
-    walls.clear()
-
-   
-    walls.append(pygame.Rect(0, 0, 2000, 20))       
-    walls.append(pygame.Rect(0, 1180, 2000, 20))   
-    walls.append(pygame.Rect(0, 0, 20, 1200))        
-    walls.append(pygame.Rect(1980, 0, 20, 1200))    
-
-    
-    walls.append(pygame.Rect(500, 700, 700, 20))
-
-
-    walls.append(pygame.Rect(200, 200, 20, 500))
-    walls.append(pygame.Rect(200, 500, 200, 20))
-    walls.append(pygame.Rect(400, 200, 20, 250))
-
- 
-    walls.append(pygame.Rect(1300, 300, 400, 20))
-    walls.append(pygame.Rect(1500, 300, 20, 250))
-    walls.append(pygame.Rect(1500, 550, 200, 20))
-    walls.append(pygame.Rect(1700, 550, 20, 300))
-
-   
-    walls.append(pygame.Rect(300, 350, 120, 20))
-    walls.append(pygame.Rect(1650, 420, 120, 20))
+font_big   = pygame.font.SysFont("consolas", 48, bold=True)
+font_med   = pygame.font.SysFont("consolas", 26, bold=True)
+font_small = pygame.font.SysFont("consolas", 18)
 
 generate_map()
+joueur = Joueur()
 
+# ─── État global ─────────────────────────────
+camera_x    = 0
+camera_y    = 0
+start_ticks = pygame.time.get_ticks()
+best_time   = None
+finished    = False
+finish_timer= 0
+elapsed     = 0
 
-def get_grapple_point(start, end):
-    steps = 40
-    for i in range(steps):
-        t = i / steps
-        x = start[0] + (end[0] - start[0]) * t
-        y = start[1] + (end[1] - start[1]) * t
-        point = pygame.Rect(x, y, 4, 4)
+# ─── Fonctions utilitaires ───────────────────
+def fmt_time(ms):
+    s  = ms // 1000
+    cs = (ms % 1000) // 10
+    return f"{s:02d}.{cs:02d}s"
 
-        for wall in walls:
-            if wall.colliderect(point):
-                return (x, y)
-    return None
+def reset():
+    global start_ticks, finished, finish_timer, elapsed
+    joueur.reset()
+    start_ticks  = pygame.time.get_ticks()
+    finished     = False
+    finish_timer = 0
+    elapsed      = 0
 
+def draw_wall(wall):
+    rx = wall.x - camera_x
+    ry = wall.y - camera_y
+    pygame.draw.rect(screen, WALL_COL,  (rx, ry, wall.w, wall.h))
+    pygame.draw.rect(screen, WALL_EDGE, (rx, ry, wall.w, wall.h), 2)
+    pygame.draw.line(screen, (100, 130, 180), (rx + 2, ry + 2), (rx + wall.w - 4, ry + 2), 1)
 
+def draw_finish(rect):
+    rx = rect.x - camera_x
+    ry = rect.y - camera_y
+    surf = pygame.Surface((rect.w, rect.h), pygame.SRCALPHA)
+    surf.fill((*FINISH_COL, 60))
+    screen.blit(surf, (rx, ry))
+    pygame.draw.rect(screen, FINISH_COL, (rx, ry, rect.w, rect.h), 3)
+    mid = rx + rect.w // 2
+    pygame.draw.line(screen, FINISH_EDG, (mid, ry + 5), (mid, ry + rect.h - 5), 3)
+    pts = [(mid, ry + 10), (mid + 22, ry + 18), (mid, ry + 26)]
+    pygame.draw.polygon(screen, FINISH_COL, pts)
 
-def draw_text(txt, x, y):
-    img = font.render(txt, True, BLACK)
-    screen.blit(img, (x, y))
+def draw_hud():
+    # Chronomètre
+    chrono = font_med.render(f"  {fmt_time(elapsed)}", True, HUD_COL)
+    screen.blit(chrono, (SCREEN_W - chrono.get_width() - 14, 10))
+    # Meilleur temps
+    if best_time is not None:
+        best = font_small.render(f"Meilleur : {fmt_time(best_time)}", True, FINISH_COL)
+        screen.blit(best, (SCREEN_W - best.get_width() - 14, 44))
+    # Contrôles
+    ctrl = font_small.render("Q/D  ESPACE  Clic gauche = grappin  R = reset", True, (120, 120, 150))
+    screen.blit(ctrl, (10, SCREEN_H - 24))
 
-def move_and_collide(rect, dx, dy):
-    rect.x += dx
-    for wall in walls:
-        if rect.colliderect(wall):
-            if dx > 0:
-                rect.right = wall.left
-            if dx < 0:
-                rect.left = wall.right
+def draw_victoire():
+    overlay = pygame.Surface((SCREEN_W, SCREEN_H), pygame.SRCALPHA)
+    overlay.fill((0, 0, 0, 140))
+    screen.blit(overlay, (0, 0))
 
-    rect.y += dy
-    global on_ground
-    on_ground = False
-    for wall in walls:
-        if rect.colliderect(wall):
-            if dy > 0:
-                rect.bottom = wall.top
-                on_ground = True
-                return
-            if dy < 0:
-                rect.top = wall.bottom
-                return
+    run_time = finish_timer - start_ticks
+    lines = [
+        ("ARRIVEE !",        font_big,   (100, 240, 160)),
+        (fmt_time(run_time), font_big,   WHITE),
+    ]
+    if best_time == run_time:
+        lines.append(("Nouveau record !", font_med, GRAP_COL))
+    lines.append(("R pour recommencer", font_small, (180, 180, 200)))
 
+    total_h = sum(f.size(t)[1] + 12 for t, f, _ in lines)
+    yy = SCREEN_H // 2 - total_h // 2
+    for text, fnt, col in lines:
+        surf = fnt.render(text, True, col)
+        screen.blit(surf, (SCREEN_W // 2 - surf.get_width() // 2, yy))
+        yy += surf.get_height() + 12
 
+# ─── Boucle principale ───────────────────────
 running = True
 while running:
     clock.tick(60)
+    now = pygame.time.get_ticks()
 
+    # ── Événements ──────────────────────────────
     for event in pygame.event.get():
-        if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
-            mx, my = pygame.mouse.get_pos()
-            world_mouse = (mx + camera_x, my + camera_y)
-
-            px, py = player.center
-            dx = world_mouse[0] - px
-            dy = world_mouse[1] - py
-            distance = (dx**2 + dy**2) ** 0.5
-
-            if distance <= GRAPPLE_RANGE:
-                hit = get_grapple_point((px, py), world_mouse)
-                if hit:
-                    grapple_point = hit
-                    grapple_active = True
-
-        if event.type == pygame.MOUSEBUTTONUP and event.button == 1:
-            grapple_active = False
-            grapple_point = None
-
         if event.type == pygame.QUIT:
             running = False
+        if event.type == pygame.KEYDOWN:
+            if event.key == pygame.K_r:
+                reset()
+            if event.key == pygame.K_ESCAPE:
+                running = False
 
-    
-    keys = pygame.key.get_pressed()
-    vel_x = 0
+        if not finished:
+            if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
+                joueur.lancer_grappin(camera_x, camera_y)
+            if event.type == pygame.MOUSEBUTTONUP and event.button == 1:
+                joueur.relacher_grappin()
 
-    if keys[pygame.K_q] or keys[pygame.K_a]:
-        vel_x = -SPEED
-    if keys[pygame.K_d]:
-        vel_x = SPEED
-    if (keys[pygame.K_z] or keys[pygame.K_w] or keys[pygame.K_SPACE]) and on_ground:
-        vel_y = JUMP_POWER
+    # ── Mise à jour ─────────────────────────────
+    if not finished:
+        elapsed = now - start_ticks
+        joueur.update(pygame.key.get_pressed())
 
-  
-    vel_y += GRAVITY
-    if vel_y > 12:
-        vel_y = 12
+        # Vérif arrivée
+        if joueur.rect.colliderect(FINISH):
+            if best_time is None or elapsed < best_time:
+                best_time = elapsed
+            finished     = True
+            finish_timer = now
+    else:
+        if now - finish_timer > 3000:
+            reset()
 
-    move_and_collide(player, vel_x, vel_y)
+    # ── Caméra ──────────────────────────────────
+    camera_x = max(0, min(int(joueur.x) - SCREEN_W // 2, WORLD_W - SCREEN_W))
+    camera_y = max(0, min(int(joueur.y) - SCREEN_H // 2, WORLD_H - SCREEN_H))
 
+    # ── Dessin ──────────────────────────────────
+    screen.fill(BG_COL)
 
-    if grapple_active and grapple_point:
-        dx = grapple_point[0] - player.centerx
-        dy = grapple_point[1] - player.centery
-        dist = (dx**2 + dy**2) ** 0.5
-
-        if dist > 10:
-            vel_x += dx * GRAPPLE_FORCE / dist
-            vel_y += dy * GRAPPLE_FORCE / dist
-        else:
-            grapple_active = False
-            grapple_point = None
-
-    camera_x = player.centerx - SCREEN_W // 2
-    camera_y = player.centery - SCREEN_H // 2
-
-    camera_x = max(0, min(camera_x, WORLD_W - SCREEN_W))
-    camera_y = max(0, min(camera_y, WORLD_H - SCREEN_H))
-
-
-    screen.fill(WHITE)
+    # Grille de fond
+    for gx in range(-(camera_x % 80), SCREEN_W, 80):
+        pygame.draw.line(screen, (28, 28, 42), (gx, 0), (gx, SCREEN_H))
+    for gy in range(-(camera_y % 80), SCREEN_H, 80):
+        pygame.draw.line(screen, (28, 28, 42), (0, gy), (SCREEN_W, gy))
 
     for wall in walls:
-        pygame.draw.rect(
-            screen,
-            BLACK,
-            pygame.Rect(
-                wall.x - camera_x,
-                wall.y - camera_y,
-                wall.width,
-                wall.height,
-            ),
-        )
+        draw_wall(wall)
 
-    pygame.draw.rect(
-        screen,
-        BLUE,
-        pygame.Rect(
-            player.x - camera_x,
-            player.y - camera_y,
-            player.width,
-            player.height,
-        ),
-    )
+    draw_finish(FINISH)
+    joueur.draw(screen, camera_x, camera_y)
+    draw_hud()
 
-    if grapple_active and grapple_point:
-        pygame.draw.line(
-            screen,
-            (50, 50, 50),
-            (player.centerx - camera_x, player.centery - camera_y),
-            (grapple_point[0] - camera_x, grapple_point[1] - camera_y),
-            2
-        )
-
-
-  
-    draw_text("Déplacements : Q/D ou ← →", 10, SCREEN_H - 60)
-    draw_text("Saut : Z / ESPACE", 10, SCREEN_H - 40)
-    draw_text("Objectif : explorer la map", 10, SCREEN_H - 20)
+    if finished:
+        draw_victoire()
 
     pygame.display.flip()
 
