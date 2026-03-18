@@ -9,8 +9,8 @@ from reste import (
     GRAP_COL, WHITE
 )
 from physique import (
-    appliquer_gravite, move_and_collide,
-    appliquer_grappin, lancer_grappin
+    appliquer_gravite, appliquer_friction,
+    move_and_collide, appliquer_grappin, lancer_grappin
 )
 
 
@@ -20,13 +20,13 @@ class Joueur:
 
     def reset(self):
         """Remet le joueur à la position de départ."""
-        self.x, self.y     = float(SPAWN[0]), float(SPAWN[1])
-        self.vel_x         = 0.0
-        self.vel_y         = 0.0
-        self.on_ground     = False
-        self.facing        = 1        # 1 = droite, -1 = gauche
-        self.grapple_active= False
-        self.grapple_point = None
+        self.x, self.y      = float(SPAWN[0]), float(SPAWN[1])
+        self.vel_x          = 0.0
+        self.vel_y          = 0.0
+        self.on_ground      = False
+        self.facing         = 1       # 1 = droite, -1 = gauche
+        self.grapple_active = False
+        self.grapple_point  = None
 
     # ── Grappin ──────────────────────────────────────────────────
     def lancer_grappin(self, camera_x, camera_y):
@@ -42,23 +42,26 @@ class Joueur:
     # ── Mise à jour ──────────────────────────────────────────────
     def update(self, keys):
         """Applique les entrées clavier, la physique et les collisions."""
-        # Déplacement horizontal
-        move = 0
+
+        # Déplacement : on ajoute à vel_x (pas de reset brutal = élan conservé)
         if keys[pygame.K_q] or keys[pygame.K_a] or keys[pygame.K_LEFT]:
-            move = -SPEED
+            self.vel_x -= SPEED
             self.facing = -1
         if keys[pygame.K_d] or keys[pygame.K_RIGHT]:
-            move = SPEED
+            self.vel_x += SPEED
             self.facing = 1
 
         # Saut
         if (keys[pygame.K_z] or keys[pygame.K_w] or keys[pygame.K_SPACE]) and self.on_ground:
             self.vel_y = JUMP_POWER
 
-        # Gravité (depuis physique.py)
+        # Gravité
         self.vel_y = appliquer_gravite(self.vel_y)
 
-        # Grappin (depuis physique.py)
+        # Friction (élan conservé dans les airs)
+        self.vel_x = appliquer_friction(self.vel_x, self.on_ground)
+
+        # Grappin
         if self.grapple_active and self.grapple_point:
             self.vel_x, self.vel_y, toujours_actif = appliquer_grappin(
                 self.vel_x, self.vel_y, self.x, self.y, self.grapple_point
@@ -66,19 +69,25 @@ class Joueur:
             if not toujours_actif:
                 self.relacher_grappin()
 
-        # Collisions (depuis physique.py)
+        # Collisions
         self.x, self.y, self.on_ground = move_and_collide(
-            self.x, self.y, move, self.vel_y
+            self.x, self.y, self.vel_x, self.vel_y
         )
+
+        # Si on touche un mur horizontal, on annule vel_x
+        # (évite d'accumuler de la vitesse contre un mur)
+        if abs(self.vel_x) > 0.1:
+            old_x = self.x
+            test_x, _, _ = move_and_collide(self.x, self.y, self.vel_x * 0.1, 0)
+            if abs(test_x - old_x) < abs(self.vel_x) * 0.05:
+                self.vel_x *= 0.3
 
     @property
     def rect(self):
-        """Rectangle de collision du joueur."""
         return pygame.Rect(self.x - TEE_R, self.y - TEE_R, TEE_R * 2, TEE_R * 2)
 
     # ── Dessin ───────────────────────────────────────────────────
     def draw(self, screen, camera_x, camera_y):
-        """Dessine le Tee à l'écran."""
         sx = int(self.x) - camera_x
         sy = int(self.y) - camera_y
         r  = TEE_R

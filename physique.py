@@ -1,5 +1,10 @@
 # ══════════════════════════════════════════════
 #  physique.py  –  Gravité, collisions, grappin
+#  Physique inspirée de DDNet :
+#   - élan conservé (pas de reset vel_x au sol)
+#   - gravité réduite
+#   - grappin avec contrainte de longueur
+#   - friction douce pour fluidité
 # ══════════════════════════════════════════════
 
 import pygame
@@ -7,15 +12,30 @@ import math
 from reste import TEE_R, GRAPPLE_RANGE, GRAPPLE_FORCE, GRAVITY, VEL_Y_MAX
 from map import walls
 
+# ─── Constantes physique avancée ─────────────────────────────
+FRICTION_SOL  = 0.82   # ralentissement horizontal au sol
+FRICTION_AIR  = 0.96   # très peu de résistance dans les airs (élan conservé)
+GRAPPLE_LEN   = 300    # longueur max du câble avant tension
+
 
 def appliquer_gravite(vel_y):
-    """Augmente la vitesse verticale (chute) à chaque frame."""
+    """Gravité réduite par rapport à DDNet pour des sauts plus aériens."""
     return min(vel_y + GRAVITY, VEL_Y_MAX)
+
+
+def appliquer_friction(vel_x, au_sol):
+    """
+    Applique la friction horizontale.
+    Au sol : on freine un peu. Dans les airs : quasi rien (élan DDNet).
+    """
+    if au_sol:
+        return vel_x * FRICTION_SOL
+    return vel_x * FRICTION_AIR
 
 
 def move_and_collide(x, y, dx, dy):
     """
-    Déplace le joueur de (dx, dy) et corrige les collisions avec les murs.
+    Déplace le joueur et résout les collisions avec les murs.
     Retourne (nouvelle_x, nouvelle_y, au_sol).
     """
     au_sol = False
@@ -47,8 +67,7 @@ def move_and_collide(x, y, dx, dy):
 def get_grapple_point(start, end):
     """
     Trace une ligne de start vers end et retourne le premier
-    point de collision avec un mur (point d'accroche du grappin).
-    Retourne None si aucun mur n'est touché.
+    point de collision avec un mur. Retourne None sinon.
     """
     steps = 60
     for i in range(1, steps + 1):
@@ -64,20 +83,35 @@ def get_grapple_point(start, end):
 
 def appliquer_grappin(vel_x, vel_y, px, py, grapple_point):
     """
-    Attire le joueur vers le point d'accroche du grappin.
-    Retourne (vel_x, vel_y, grappin_toujours_actif).
+    Physique du grappin style DDNet :
+    - Force d'attraction vers le point d'accroche
+    - Contrainte de longueur : si le câble est tendu, on supprime
+      la composante de vitesse qui s'éloigne du point (élan latéral conservé)
+    - Retourne (vel_x, vel_y, toujours_actif)
     """
     dx = grapple_point[0] - px
     dy = grapple_point[1] - py
     dist = math.hypot(dx, dy)
 
-    if dist > 10:
-        vel_x += dx * GRAPPLE_FORCE / dist
-        vel_y += dy * GRAPPLE_FORCE / dist
-        return vel_x, vel_y, True
-    else:
-        # Le joueur est arrivé au point d'accroche
+    if dist < 5:
         return vel_x, vel_y, False
+
+    # Direction normalisée vers le point d'accroche
+    nx = dx / dist
+    ny = dy / dist
+
+    # Force d'attraction (plus forte que avant pour feel DDNet)
+    vel_x += nx * GRAPPLE_FORCE
+    vel_y += ny * GRAPPLE_FORCE
+
+    # Contrainte de longueur : si câble tendu, on annule la fuite
+    if dist > GRAPPLE_LEN:
+        dot = vel_x * nx + vel_y * ny
+        if dot < 0:   # le joueur s'éloigne du point
+            vel_x -= dot * nx
+            vel_y -= dot * ny
+
+    return vel_x, vel_y, True
 
 
 def lancer_grappin(px, py, camera_x, camera_y):

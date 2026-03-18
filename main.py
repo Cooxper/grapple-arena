@@ -13,7 +13,8 @@ from tee import Joueur
 
 # ─── Initialisation ──────────────────────────
 pygame.init()
-screen = pygame.display.set_mode((SCREEN_W, SCREEN_H))
+screen     = pygame.display.set_mode((SCREEN_W, SCREEN_H), pygame.RESIZABLE)
+fullscreen = False
 pygame.display.set_caption("Grapple Arena")
 clock = pygame.time.Clock()
 
@@ -34,6 +35,19 @@ finish_timer= 0
 elapsed     = 0
 
 # ─── Fonctions utilitaires ───────────────────
+def get_screen_size():
+    """Retourne la taille actuelle de la fenêtre."""
+    return screen.get_width(), screen.get_height()
+
+def toggle_fullscreen():
+    """Bascule entre fullscreen et mode fenêtré."""
+    global screen, fullscreen
+    fullscreen = not fullscreen
+    if fullscreen:
+        screen = pygame.display.set_mode((0, 0), pygame.FULLSCREEN)
+    else:
+        screen = pygame.display.set_mode((SCREEN_W, SCREEN_H), pygame.RESIZABLE)
+
 def fmt_time(ms):
     s  = ms // 1000
     cs = (ms % 1000) // 10
@@ -47,7 +61,7 @@ def reset():
     finish_timer = 0
     elapsed      = 0
 
-def draw_wall(wall):
+def draw_wall(wall, sw, sh):
     rx = wall.x - camera_x
     ry = wall.y - camera_y
     pygame.draw.rect(screen, WALL_COL,  (rx, ry, wall.w, wall.h))
@@ -67,19 +81,21 @@ def draw_finish(rect):
     pygame.draw.polygon(screen, FINISH_COL, pts)
 
 def draw_hud():
+    sw, sh = get_screen_size()
     # Chronomètre
     chrono = font_med.render(f"  {fmt_time(elapsed)}", True, HUD_COL)
-    screen.blit(chrono, (SCREEN_W - chrono.get_width() - 14, 10))
+    screen.blit(chrono, (sw - chrono.get_width() - 14, 10))
     # Meilleur temps
     if best_time is not None:
         best = font_small.render(f"Meilleur : {fmt_time(best_time)}", True, FINISH_COL)
-        screen.blit(best, (SCREEN_W - best.get_width() - 14, 44))
+        screen.blit(best, (sw - best.get_width() - 14, 44))
     # Contrôles
-    ctrl = font_small.render("Q/D  ESPACE  Clic gauche = grappin  R = reset", True, (120, 120, 150))
-    screen.blit(ctrl, (10, SCREEN_H - 24))
+    ctrl = font_small.render("Q/D  ESPACE  Clic gauche = grappin  R = reset  F11 = fullscreen", True, (120, 120, 150))
+    screen.blit(ctrl, (10, sh - 24))
 
 def draw_victoire():
-    overlay = pygame.Surface((SCREEN_W, SCREEN_H), pygame.SRCALPHA)
+    sw, sh = get_screen_size()
+    overlay = pygame.Surface((sw, sh), pygame.SRCALPHA)
     overlay.fill((0, 0, 0, 140))
     screen.blit(overlay, (0, 0))
 
@@ -93,10 +109,10 @@ def draw_victoire():
     lines.append(("R pour recommencer", font_small, (180, 180, 200)))
 
     total_h = sum(f.size(t)[1] + 12 for t, f, _ in lines)
-    yy = SCREEN_H // 2 - total_h // 2
+    yy = sh // 2 - total_h // 2
     for text, fnt, col in lines:
         surf = fnt.render(text, True, col)
-        screen.blit(surf, (SCREEN_W // 2 - surf.get_width() // 2, yy))
+        screen.blit(surf, (sw // 2 - surf.get_width() // 2, yy))
         yy += surf.get_height() + 12
 
 # ─── Boucle principale ───────────────────────
@@ -104,6 +120,7 @@ running = True
 while running:
     clock.tick(60)
     now = pygame.time.get_ticks()
+    sw, sh = get_screen_size()
 
     # ── Événements ──────────────────────────────
     for event in pygame.event.get():
@@ -114,6 +131,8 @@ while running:
                 reset()
             if event.key == pygame.K_ESCAPE:
                 running = False
+            if event.key == pygame.K_F11:
+                toggle_fullscreen()
 
         if not finished:
             if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
@@ -126,7 +145,6 @@ while running:
         elapsed = now - start_ticks
         joueur.update(pygame.key.get_pressed())
 
-        # Vérif arrivée
         if joueur.rect.colliderect(FINISH):
             if best_time is None or elapsed < best_time:
                 best_time = elapsed
@@ -136,21 +154,21 @@ while running:
         if now - finish_timer > 3000:
             reset()
 
-    # ── Caméra ──────────────────────────────────
-    camera_x = max(0, min(int(joueur.x) - SCREEN_W // 2, WORLD_W - SCREEN_W))
-    camera_y = max(0, min(int(joueur.y) - SCREEN_H // 2, WORLD_H - SCREEN_H))
+    # ── Caméra (centrée sur le joueur) ──────────
+    camera_x = max(0, min(int(joueur.x) - sw // 2, WORLD_W - sw))
+    camera_y = max(0, min(int(joueur.y) - sh // 2, WORLD_H - sh))
 
     # ── Dessin ──────────────────────────────────
     screen.fill(BG_COL)
 
     # Grille de fond
-    for gx in range(-(camera_x % 80), SCREEN_W, 80):
-        pygame.draw.line(screen, (28, 28, 42), (gx, 0), (gx, SCREEN_H))
-    for gy in range(-(camera_y % 80), SCREEN_H, 80):
-        pygame.draw.line(screen, (28, 28, 42), (0, gy), (SCREEN_W, gy))
+    for gx in range(-(camera_x % 80), sw, 80):
+        pygame.draw.line(screen, (28, 28, 42), (gx, 0), (gx, sh))
+    for gy in range(-(camera_y % 80), sh, 80):
+        pygame.draw.line(screen, (28, 28, 42), (0, gy), (sw, gy))
 
     for wall in walls:
-        draw_wall(wall)
+        draw_wall(wall, sw, sh)
 
     draw_finish(FINISH)
     joueur.draw(screen, camera_x, camera_y)

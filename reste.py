@@ -1,6 +1,5 @@
-
 # ══════════════════════════════════════════════
-#  constantes.py  –  Toutes les valeurs fixes
+#  reste.py  –  Toutes les valeurs fixes
 # ══════════════════════════════════════════════
 
 # ─── Fenêtre ─────────────────────────────────
@@ -10,14 +9,14 @@ SCREEN_W, SCREEN_H = 900, 600
 WORLD_W, WORLD_H = 2400, 1600
 SPAWN = (800, 620)
 
-# ─── Physique ────────────────────────────────
-SPEED         = 6
-GRAVITY       = 0.5
-JUMP_POWER    = -10
+# ─── Physique (style DDNet) ──────────────────
+SPEED         = 5      # accélération horizontale (pas vitesse max)
+GRAVITY       = 0.35   # gravité réduite = sauts plus aériens
+JUMP_POWER    = -11    # saut un peu plus haut
 GRAPPLE_RANGE = 800
-GRAPPLE_FORCE = 1.8
-TEE_R         = 14        # rayon du personnage
-VEL_Y_MAX     = 15        # vitesse de chute max
+GRAPPLE_FORCE = 2.2    # grappin plus nerveux
+TEE_R         = 14
+VEL_Y_MAX     = 20     # vitesse de chute max
 
 # ─── Couleurs générales ───────────────────────
 WHITE      = (240, 240, 245)
