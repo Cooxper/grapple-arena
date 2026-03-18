@@ -1,127 +1,89 @@
-# ══════════════════════════════════════════════
-#  tee.py  –  Classe du joueur (Tee)
-# ══════════════════════════════════════════════
+# tee.py — personnage joueur
+# Wrapper de CCharacterCore + dessin pygame
 
 import pygame
-from reste import (
-    SPAWN, SPEED, JUMP_POWER,
-    TEE_R, TEE_BODY, TEE_BORDER, TEE_EYE, TEE_WHITE, TEE_FEET,
-    GRAP_COL, WHITE
-)
-from physique import (
-    appliquer_gravite, appliquer_friction,
-    move_and_collide, appliquer_grappin, lancer_grappin
-)
+import math
+from gamecore import CCharacterCore
+from tuning import PHYS_SIZE, HOOK_IDLE, HOOK_GRABBED
+
+TEE_R = int(PHYS_SIZE / 2)
+
+# Couleurs du Tee
+BODY_COL   = (255, 210, 100)
+BORDER_COL = (180, 130,  40)
+EYE_COL    = ( 30,  30,  40)
+WHITE      = (255, 255, 255)
+FEET_COL   = (180, 120,  30)
+HOOK_COL   = (255, 140,   0)
 
 
 class Joueur:
-    def __init__(self):
-        self.reset()
+    def __init__(self, spawn_x, spawn_y):
+        self.core   = CCharacterCore()
+        self.facing = 1
+        self.reset(spawn_x, spawn_y)
 
-    def reset(self):
-        """Remet le joueur à la position de départ."""
-        self.x, self.y      = float(SPAWN[0]), float(SPAWN[1])
-        self.vel_x          = 0.0
-        self.vel_y          = 0.0
-        self.on_ground      = False
-        self.facing         = 1       # 1 = droite, -1 = gauche
-        self.grapple_active = False
-        self.grapple_point  = None
+        # positions précédente et courante pour interpolation
+        self.prev_x = spawn_x
+        self.prev_y = spawn_y
 
-    # ── Grappin ──────────────────────────────────────────────────
-    def lancer_grappin(self, camera_x, camera_y):
-        point = lancer_grappin(self.x, self.y, camera_x, camera_y)
-        if point:
-            self.grapple_point  = point
-            self.grapple_active = True
+    def reset(self, spawn_x, spawn_y):
+        self.core.reset(spawn_x, spawn_y)
+        self.facing  = 1
+        self.prev_x  = spawn_x
+        self.prev_y  = spawn_y
 
-    def relacher_grappin(self):
-        self.grapple_active = False
-        self.grapple_point  = None
+    def tick(self, inp_dir, inp_jump, inp_hook, target_x, target_y):
+        self.prev_x = self.core.pos_x
+        self.prev_y = self.core.pos_y
+        if inp_dir != 0:
+            self.facing = inp_dir
+        self.core.tick(inp_dir, inp_jump, inp_hook, target_x, target_y)
+        self.core.tick_deferred()
 
-    # ── Mise à jour ──────────────────────────────────────────────
-    def update(self, keys):
-        """Applique les entrées clavier, la physique et les collisions."""
-
-        # Déplacement : on ajoute à vel_x (pas de reset brutal = élan conservé)
-        if keys[pygame.K_q] or keys[pygame.K_a] or keys[pygame.K_LEFT]:
-            self.vel_x -= SPEED
-            self.facing = -1
-        if keys[pygame.K_d] or keys[pygame.K_RIGHT]:
-            self.vel_x += SPEED
-            self.facing = 1
-
-        # Saut
-        if (keys[pygame.K_z] or keys[pygame.K_w] or keys[pygame.K_SPACE]) and self.on_ground:
-            self.vel_y = JUMP_POWER
-
-        # Gravité
-        self.vel_y = appliquer_gravite(self.vel_y)
-
-        # Friction (élan conservé dans les airs)
-        self.vel_x = appliquer_friction(self.vel_x, self.on_ground)
-
-        # Grappin
-        if self.grapple_active and self.grapple_point:
-            self.vel_x, self.vel_y, toujours_actif = appliquer_grappin(
-                self.vel_x, self.vel_y, self.x, self.y, self.grapple_point
-            )
-            if not toujours_actif:
-                self.relacher_grappin()
-
-        # Collisions
-        self.x, self.y, self.on_ground = move_and_collide(
-            self.x, self.y, self.vel_x, self.vel_y
-        )
-
-        # Si on touche un mur horizontal, on annule vel_x
-        # (évite d'accumuler de la vitesse contre un mur)
-        if abs(self.vel_x) > 0.1:
-            old_x = self.x
-            test_x, _, _ = move_and_collide(self.x, self.y, self.vel_x * 0.1, 0)
-            if abs(test_x - old_x) < abs(self.vel_x) * 0.05:
-                self.vel_x *= 0.3
-
-    @property
-    def rect(self):
-        return pygame.Rect(self.x - TEE_R, self.y - TEE_R, TEE_R * 2, TEE_R * 2)
-
-    # ── Dessin ───────────────────────────────────────────────────
-    def draw(self, screen, camera_x, camera_y):
-        sx = int(self.x) - camera_x
-        sy = int(self.y) - camera_y
+    def draw(self, screen, cam_x, cam_y):
+        sx = int(self.core.pos_x) - cam_x
+        sy = int(self.core.pos_y) - cam_y
         r  = TEE_R
 
         # Câble du grappin
-        if self.grapple_active and self.grapple_point:
-            gx = int(self.grapple_point[0]) - camera_x
-            gy = int(self.grapple_point[1]) - camera_y
+        if self.core.hook_state != HOOK_IDLE:
+            gx = int(self.core.hook_pos_x) - cam_x
+            gy = int(self.core.hook_pos_y) - cam_y
             pygame.draw.line(screen, (80, 60, 20), (sx, sy), (gx, gy), 3)
-            pygame.draw.line(screen, GRAP_COL,     (sx, sy), (gx, gy), 1)
-            pygame.draw.circle(screen, GRAP_COL, (gx, gy), 5)
-            pygame.draw.circle(screen, WHITE,    (gx, gy), 3)
+            pygame.draw.line(screen, HOOK_COL,     (sx, sy), (gx, gy), 1)
+            if self.core.hook_state == HOOK_GRABBED:
+                pygame.draw.circle(screen, HOOK_COL, (gx, gy), 5)
+                pygame.draw.circle(screen, WHITE,    (gx, gy), 3)
 
-        # Ombre au sol
+        # Ombre
         shadow = pygame.Surface((r * 3, r), pygame.SRCALPHA)
         pygame.draw.ellipse(shadow, (0, 0, 0, 60), shadow.get_rect())
-        screen.blit(shadow, (sx - r + r // 2, sy + r - 4))
+        screen.blit(shadow, (sx - r + r//2, sy + r - 4))
 
         # Corps
-        pygame.draw.circle(screen, TEE_BORDER, (sx, sy), r + 2)
-        pygame.draw.circle(screen, TEE_BODY,   (sx, sy), r)
+        pygame.draw.circle(screen, BORDER_COL, (sx, sy), r + 2)
+        pygame.draw.circle(screen, BODY_COL,   (sx, sy), r)
 
         # Pieds
-        foot_y = sy + r - 4
+        fy = sy + r - 4
         for fx in [sx - 6, sx + 6]:
-            pygame.draw.circle(screen, TEE_FEET,   (fx, foot_y), 5)
-            pygame.draw.circle(screen, TEE_BORDER, (fx, foot_y), 5, 2)
+            pygame.draw.circle(screen, FEET_COL,   (fx, fy), 5)
+            pygame.draw.circle(screen, BORDER_COL, (fx, fy), 5, 2)
 
         # Yeux
-        eye_ox = 5 * self.facing
-        pygame.draw.circle(screen, TEE_WHITE, (sx + eye_ox,               sy - 3), 5)
-        pygame.draw.circle(screen, TEE_WHITE, (sx + eye_ox + 2,           sy - 3), 5)
-        pygame.draw.circle(screen, TEE_EYE,   (sx + eye_ox + self.facing, sy - 3), 3)
+        eox = 5 * self.facing
+        pygame.draw.circle(screen, WHITE,   (sx + eox,              sy - 3), 5)
+        pygame.draw.circle(screen, WHITE,   (sx + eox + 2,          sy - 3), 5)
+        pygame.draw.circle(screen, EYE_COL, (sx + eox + self.facing, sy - 3), 3)
 
-        # Bras si grappin actif
-        if self.grapple_active:
-            pygame.draw.circle(screen, TEE_BORDER, (sx + self.facing * r, sy - 2), 4)
+        # Bras grappin
+        if self.core.hook_state != HOOK_IDLE:
+            pygame.draw.circle(screen, BORDER_COL, (sx + self.facing * r, sy - 2), 4)
+
+    @property
+    def x(self): return self.core.pos_x
+    @property
+    def y(self): return self.core.pos_y
+    @property
+    def jumps_left(self): return self.core.jumps_left
