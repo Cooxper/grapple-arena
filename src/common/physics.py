@@ -1,13 +1,36 @@
+import pygame
+from .settings import *
+
 class Entity:
     def __init__(self, x, y):
         self.pos = pygame.math.Vector2(x, y)
         self.vel = pygame.math.Vector2(0, 0)
-        self.size = 28 # Un peu plus petit que 32 pour glisser plus facilement
+        self.size = 28
+        
+        # Variables pour le grappin
+        self.is_hooked = False
+        self.hook_pos = pygame.math.Vector2(0, 0)
+
+    def move_left(self, on_ground):
+        accel = ACCEL_GROUND if on_ground else ACCEL_AIR
+        self.vel.x -= accel
+
+    def move_right(self, on_ground):
+        accel = ACCEL_GROUND if on_ground else ACCEL_AIR
+        self.vel.x += accel
+
+    def jump(self):
+        self.vel.y = JUMP_FORCE
 
     def update_physics(self, world):
         # Gravité et Friction
         self.vel.y += GRAVITY
         self.vel.x *= FRICTION
+
+        # Traction du grappin
+        if self.is_hooked:
+            direction = (self.hook_pos - self.pos).normalize()
+            self.vel += direction * HOOK_PULL_FORCE
 
         # Test collision Horizontale
         new_x = self.pos.x + self.vel.x
