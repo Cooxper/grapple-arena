@@ -41,58 +41,41 @@ HOOK_COLOR = (200, 200, 200)
 pygame.init()
 
 def load_map_from_image(filename):
-    """
-    Lit une image PNG et la convertit en grille de jeu.
-    Noir (0,0,0) -> Mur (1)
-    Rouge (255,0,0) -> KillBrick (2)
-    Bleu (0,0,255) -> Spawn (0 + renvoie coords)
-    """
-    # Construction du chemin absolu pour éviter les erreurs
     base_path = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
     map_path = os.path.join(base_path, 'assets', 'maps', filename)
     
-    print(f"Chargement de la map depuis : {map_path}")
-    
-    try:
-        # Chargement de l'image via Pygame
-        img = pygame.image.load(map_path)
-    except pygame.error as e:
-        print(f"ERREUR : Impossible de charger l'image de map.\n{e}")
-        # Map par défaut pour éviter le crash
-        return [[1,1,1],[1,0,1],[1,1,1]], (1, 1)
+    if not os.path.exists(map_path):
+        print(f"Fichier {filename} introuvable.")
+        return [[1]*50, [1]+[0]*48+[1], [1]*50], (100, 100)
 
+    img = pygame.image.load(map_path).convert_alpha()
     width, height = img.get_size()
     new_map = []
-    player_spawn = (100, 100) # Spawn par défaut
     
-    # Légende des couleurs précises (RGB)
-    COLOR_WALL = (0, 0, 0)
-    COLOR_RESPAWN = (255, 0, 0)
-    COLOR_SPAWN_POINT = (0, 0, 255)
+    # On définit un spawn par défaut (haut-gauche) au cas où il n'y a pas de bleu
+    player_spawn = (64, 64) 
+    found_blue = False
 
     for y in range(height):
         row = []
         for x in range(width):
-            # Récupération de la couleur du pixel (x, y)
-            pixel_color = img.get_at((x, y))
-            r, g, b, a = pixel_color # On récupère les composantes
-
-            if (r, g, b) == COLOR_WALL:
+            r, g, b, a = img.get_at((x, y))
+            # Noir = Mur
+            if r < 50 and g < 50 and b < 50 and a > 200:
                 row.append(1)
-            elif (r, g, b) == COLOR_RESPAWN:
+            # Rouge = Mort
+            elif r > 200 and g < 100 and b < 100:
                 row.append(2)
-            elif (r, g, b) == COLOR_SPAWN_POINT:
-                row.append(0) # Air
-                # Calcul des coordonnées réelles en pixels
+            # Bleu = Spawn
+            elif r < 100 and g < 100 and b > 200:
+                row.append(0)
                 player_spawn = (x * TILE_SIZE, y * TILE_SIZE)
-                print(f"Point de spawn détecté à : ({x}, {y})")
+                found_blue = True
             else:
-                row.append(0) # Air pour tout le reste (blanc, etc.)
+                row.append(0)
         new_map.append(row)
-        
-    print(f"Map chargée : {width}x{height} tuiles.")
+    
+    if not found_blue:
+        print("Pas de pixel bleu trouvé : spawn automatique en (64, 64)")
+    
     return new_map, player_spawn
-
-# --- GENERATION DE LA MAP ET DU SPAWN ---
-# On charge 'map_level_1.png'
-GAME_MAP, PLAYER_START_POS = load_map_from_image('map_level_1.png')

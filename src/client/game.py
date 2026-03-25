@@ -23,39 +23,36 @@ class GameClient:
         self.current_gravity = GRAVITY
 
     def draw_game(self, alpha):
-        # 1. Calcul de la position fluide
+        # 1. Calcul position et caméra
         interp_x = self.player.old_pos.x + (self.player.pos.x - self.player.old_pos.x) * alpha
         interp_y = self.player.old_pos.y + (self.player.pos.y - self.player.old_pos.y) * alpha
-
-        # 2. Calcul de la Caméra (Centrée sur le joueur)
         cam_x = interp_x - WINDOW_WIDTH // 2
         cam_y = interp_y - WINDOW_HEIGHT // 2
 
-        # 3. Dessin de la Map
-        for row_index, row in enumerate(GAME_MAP):
-            for col_index, tile in enumerate(row):
-                if tile > 0:
-                    x = col_index * TILE_SIZE - cam_x
-                    y = row_index * TILE_SIZE - cam_y
-                    # On ne dessine que si c'est visible à l'écran
-                    if -TILE_SIZE < x < WINDOW_WIDTH and -TILE_SIZE < y < WINDOW_HEIGHT:
-                        color = (100, 100, 100) if tile == 1 else COLOR_KILL
-                        pygame.draw.rect(self.screen, color, (x, y, TILE_SIZE - 1, TILE_SIZE - 1))
+        # 2. OPTIMISATION : On calcule quelles tuiles sont visibles
+        start_col = max(0, int(cam_x // TILE_SIZE))
+        end_col = min(len(GAME_MAP[0]), int((cam_x + WINDOW_WIDTH) // TILE_SIZE) + 1)
+        start_row = max(0, int(cam_y // TILE_SIZE))
+        end_row = min(len(GAME_MAP), int((cam_y + WINDOW_HEIGHT) // TILE_SIZE) + 1)
 
-        # 4. Grappin (avec offset caméra)
+        # 3. Rendu de la map visible UNIQUEMENT
+        self.screen.fill(COLOR_BG)
+        for r in range(start_row, end_row):
+            for c in range(start_col, end_col):
+                tile = GAME_MAP[r][c]
+                if tile > 0:
+                    x = c * TILE_SIZE - cam_x
+                    y = r * TILE_SIZE - cam_y
+                    color = (60, 60, 70) if tile == 1 else COLOR_KILL
+                    pygame.draw.rect(self.screen, color, (x, y, TILE_SIZE-1, TILE_SIZE-1))
+
+        # 4. Grappin et Joueur (Inchangé)
         if self.player.is_hooked:
             p_center = (interp_x + self.player.size/2 - cam_x, interp_y + self.player.size/2 - cam_y)
             h_pos = (self.player.hook_pos.x - cam_x, self.player.hook_pos.y - cam_y)
             pygame.draw.line(self.screen, HOOK_COLOR, p_center, h_pos, 2)
 
-        # 5. Joueur (avec offset caméra)
         pygame.draw.rect(self.screen, COLOR_PLAYER, (interp_x - cam_x, interp_y - cam_y, self.player.size, self.player.size))
-
-        if self.show_fps:
-            fps_val = int(self.clock.get_fps())
-            font = pygame.font.SysFont("Arial", 14, bold=True)
-            txt = font.render(f"{fps_val} FPS", True, (0, 255, 0))
-            self.screen.blit(txt, (10, 10))
 
     def draw_settings_menu(self):
         self.screen.fill(UI_DARK_BG)
