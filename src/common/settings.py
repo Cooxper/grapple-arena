@@ -79,3 +79,5 @@ def load_map_from_image(filename):
         print("Pas de pixel bleu trouvé : spawn automatique en (64, 64)")
     
     return new_map, player_spawn
+
+GAME_MAP, PLAYER_START_POS = load_map_from_image('map_level_1.png')
