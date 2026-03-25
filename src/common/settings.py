@@ -9,6 +9,7 @@ UI_NAV_BAR = (15, 20, 40)      # Barre du haut et menu droite
 UI_PANEL_BG = (45, 55, 90)     # Bleu-gris des cartes
 UI_ACCENT_BLUE = (100, 150, 255) # Bleu sélection
 UI_BUTTON_BG = (70, 85, 130)   # Fond des champs de saisie
+UI_TEXT = (230, 230, 230)
 
 # --- VALEURS PHYSIQUES DDNET ---
 GRAVITY = 0.5

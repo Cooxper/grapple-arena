@@ -10,3 +10,8 @@ def __init__(self):
         self.selected_tab = "Graphics" # Onglet par défaut
         self.show_fps = True           # L'option que tu voulais
         self.current_fps = FPS
+
+# Dans le __init__ de GameClient
+        self.fps_options = [60, 120, 180, 240, 999] # 999 pour "Unlimited"
+        self.fps_idx = 0 # Par défaut 60 FPS
+        self.current_fps = self.fps_options[self.fps_idx]
