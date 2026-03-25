@@ -77,6 +77,7 @@ class GameClient:
         self.screen.blit(v_txt, (x + 170, y - 2))
 
     def run(self):
+        """Boucle principale corrigée"""
         tick_rate = 1.0 / 60.0
         accumulator = 0.0
         last_time = time.time()
@@ -91,16 +92,19 @@ class GameClient:
             for event in pygame.event.get():
                 if event.type == pygame.QUIT:
                     pygame.quit(); sys.exit()
+                
                 if event.type == pygame.KEYDOWN:
                     if event.key == pygame.K_ESCAPE:
                         self.state = "SETTINGS" if self.state == "GAME" else "GAME"
                     if self.state == "GAME" and event.key in [pygame.K_z, pygame.K_SPACE]:
                         jump_requested = True
+
                 if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
                     m_pos = pygame.mouse.get_pos()
                     if self.state == "GAME":
                         self.player.fire_hook(pygame.math.Vector2(m_pos), self.world)
                     elif self.state == "SETTINGS":
+                        # Logique des onglets et boutons du menu
                         if m_pos[0] > WINDOW_WIDTH - 180:
                             idx = (m_pos[1] - 80) // 40
                             tabs = ["General", "Player", "Appearance", "Controls", "Graphics", "Sound"]
@@ -111,19 +115,32 @@ class GameClient:
                                 self.current_fps = self.fps_options[self.fps_idx]
                             if 165 < m_pos[1] < 195 and (50 + 160) < m_pos[0] < (50 + 160 + 180):
                                 self.show_fps = not self.show_fps
+
                 if event.type == pygame.MOUSEBUTTONUP and event.button == 1:
                     if self.state == "GAME": self.player.is_hooked = False
 
+            # --- LOGIQUE PHYSIQUE ---
             if self.state == "GAME":
                 while accumulator >= tick_rate:
-                    self.player.update_physics(self.world, {'left': pygame.key.get_pressed()[pygame.K_q], 'right': pygame.key.get_pressed()[pygame.K_d], 'jump': jump_requested})
+                    # On récupère les touches en temps réel pour la fluidité
+                    keys = pygame.key.get_pressed()
+                    inputs = {
+                        'left': keys[pygame.K_q], 
+                        'right': keys[pygame.K_d], 
+                        'jump': jump_requested
+                    }
+                    self.player.update_physics(self.world, inputs)
                     jump_requested = False
                     accumulator -= tick_rate
+                
+                # Calcul de l'alpha pour l'interpolation visuelle
                 alpha = accumulator / tick_rate
             else:
-                accumulator = 0qqq
+                # CORRECTION : On remet à zéro sans les "qqq"
+                accumulator = 0
                 alpha = 0
 
+            # --- RENDU ---
             if self.state == "GAME":
                 self.screen.fill(COLOR_BG)
                 self.draw_game(alpha)
