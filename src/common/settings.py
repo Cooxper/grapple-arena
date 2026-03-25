@@ -3,11 +3,12 @@ WINDOW_WIDTH = 1600
 WINDOW_HEIGHT = 600
 FPS = 60
 
-# Couleurs style DDNet
-UI_BG = (25, 25, 35)      # Bleu nuit très foncé
-UI_PANEL = (40, 45, 60)   # Gris-bleu pour les panneaux
-UI_ACCENT = (0, 150, 255) # Bleu clair pour la sélection
-UI_TEXT = (220, 220, 220)
+# Couleurs KRX/DDNet (basées sur ta photo)
+UI_DARK_BG = (10, 15, 30)      # Fond bleu très sombre
+UI_NAV_BAR = (15, 20, 40)      # Barre du haut et menu droite
+UI_PANEL_BG = (45, 55, 90)     # Bleu-gris des cartes
+UI_ACCENT_BLUE = (100, 150, 255) # Bleu sélection
+UI_BUTTON_BG = (70, 85, 130)   # Fond des champs de saisie
 
 # --- VALEURS PHYSIQUES DDNET ---
 GRAVITY = 0.5
