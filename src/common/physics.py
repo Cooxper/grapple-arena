@@ -21,26 +21,19 @@ class Entity:
         self.vel.y = JUMP_FORCE
 
     def update_physics(self, world, dt):
-        # On multiplie par 60 car tes valeurs (GRAVITY, etc.) ont été réglées pour 60 FPS
-        # Cela permet de garder le même "feeling" qu'avant
+        # Normalisation sur 60 FPS
         time_scale = dt * 60 
 
-        # 1. Détection du sol
+        # Détection du sol
         on_ground = world.check_collision(self.pos.x, self.pos.y + self.size + 1) or \
                     world.check_collision(self.pos.x + self.size, self.pos.y + self.size + 1)
 
-        # 2. Friction et Gravité (appliquées avec time_scale)
+        # Application Friction et Gravité selon le sol ou l'air
         if on_ground:
-            # La friction est un multiplicateur, on utilise pow() pour la rendre indépendante du framerate
             self.vel.x *= pow(FRICTION_GROUND, time_scale)
         else:
             self.vel.x *= pow(FRICTION_AIR, time_scale)
             self.vel.y += GRAVITY * time_scale
-
-        # 3. Limite de vitesse
-        max_s = MAX_SPEED_GROUND if on_ground else MAX_SPEED_AIR
-        if abs(self.vel.x) > max_s:
-            self.vel.x *= pow(0.9, time_scale)
 
         # 4. Déplacement réel (appliqué avec time_scale)
         # On calcule les collisions avec la nouvelle vélocité

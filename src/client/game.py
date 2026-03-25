@@ -6,18 +6,46 @@ from src.common.settings import *
 
 def run(self):
         while True:
-            # dt est le temps écoulé en millisecondes, on le divise par 1000 pour l'avoir en secondes
-            # On cap à FPS pour la fluidité d'affichage, mais la physique utilisera dt
+            # dt est le temps écoulé en secondes (ex: 0.016 pour 60 FPS)
             dt = self.clock.tick(FPS) / 1000.0 
 
+            # 1. Événements
             for event in pygame.event.get():
                 if event.type == pygame.QUIT:
                     pygame.quit()
                     sys.exit()
-                # ... garde ta gestion du grappin ici ...
 
-            # --- PASSAGE DU DT À LA PHYSIQUE ---
+            # 2. Entrées Clavier
+            keys = pygame.key.get_pressed()
+            # Détection du sol pour savoir si on peut sauter
+            on_ground = self.world.check_collision(self.player.pos.x, self.player.pos.y + self.player.size + 1) or \
+                        self.world.check_collision(self.player.pos.x + self.player.size, self.player.pos.y + self.player.size + 1)
+
+            if keys[pygame.K_q]: self.player.move_left(on_ground, dt)
+            if keys[pygame.K_d]: self.player.move_right(on_ground, dt)
+            if (keys[pygame.K_z] or keys[pygame.K_SPACE]) and on_ground:
+                self.player.jump()
+
+            # 3. Mise à jour Physique (ON AJOUTE LE dt ICI)
             self.player.update_physics(self.world, dt)
+
+            # 4. Rendu
+            self.screen.fill(COLOR_BG)
+
+            # Dessiner la Map
+            for row_index, row in enumerate(GAME_MAP):
+                for col_index, tile in enumerate(row):
+                    if tile == 1:
+                        pygame.draw.rect(self.screen, (100, 100, 100), 
+                                         (col_index * TILE_SIZE, row_index * TILE_SIZE, 
+                                          TILE_SIZE - 1, TILE_SIZE - 1))
+
+            # Dessiner le joueur
+            pygame.draw.rect(self.screen, COLOR_PLAYER, 
+                            (self.player.pos.x, self.player.pos.y, 
+                             self.player.size, self.player.size))
+            
+            pygame.display.flip()
             
 
 class GameClient:
