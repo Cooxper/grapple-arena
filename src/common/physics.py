@@ -19,81 +19,98 @@ class Entity:
             # On consomme le dernier saut disponible
             self.can_double_jump = False
 
+    def fire_hook(self, target_pos, world):
+        # On part du centre du joueur
+        start_pos = pygame.math.Vector2(self.pos.x + self.size/2, self.pos.y + self.size/2)
+        
+        # Vecteur direction vers la souris
+        diff = target_pos - start_pos
+        if diff.length() == 0: return
+        direction = diff.normalize()
+        
+        # Raycasting simple : on avance de 10px en 10px jusqu'à HOOK_REACH
+        curr_pos = pygame.math.Vector2(start_pos)
+        distance = 0
+        
+        while distance < HOOK_REACH:
+            curr_pos += direction * 10
+            distance += 10
+            
+            if world.check_collision(curr_pos.x, curr_pos.y):
+                self.hook_pos = pygame.math.Vector2(curr_pos)
+                self.is_hooked = True
+                return
+        
+        self.is_hooked = False
+
     def update_physics(self, world, input_data):
         # 1. Détection du sol
-        on_ground = world.check_collision(self.pos.x, self.pos.y + self.size + 1) or \
-                    world.check_collision(self.pos.x + self.size, self.pos.y + self.size + 1)
+        on_ground = world.check_collision(self.pos.x + 4, self.pos.y + self.size + 1) or \
+                    world.check_collision(self.pos.x + self.size - 4, self.pos.y + self.size + 1)
 
-        # Si on touche le sol, on réinitialise le double saut (sécurité)
         if on_ground:
-            self.can_double_jump = False 
-
+            self.can_double_jump = True
+        
         if input_data['jump']:
             self.jump(on_ground)
-            input_data['jump'] = False # On consomme l'input immédiatement
-
-        # 2. Application des entrées
-        accel = ACCEL_GROUND if on_ground else ACCEL_AIR
-        if input_data['left']: self.vel.x -= accel
-        if input_data['right']: self.vel.x += accel
-        
-        # On passe on_ground à la fonction jump pour qu'elle décide quel saut faire
-        if input_data['jump']: 
-            self.jump(on_ground)
-            # Important : on vide l'input jump pour ne pas sauter à chaque frame
             input_data['jump'] = False
-        # 2. Application des entrées clavier (Marche et Saut)
+
+        # 2. Application des forces horizontales
         accel = ACCEL_GROUND if on_ground else ACCEL_AIR
         if input_data['left']: self.vel.x -= accel
         if input_data['right']: self.vel.x += accel
-        if input_data['jump'] and on_ground: self.vel.y = JUMP_FORCE
 
-        # 3. Logique de traction du Grappin (Hook)
+        # 3. Traction du Grappin
         if self.is_hooked:
-            # Calcul du vecteur entre le joueur et le point d'attache
             target = pygame.math.Vector2(self.hook_pos)
             current = pygame.math.Vector2(self.pos.x + self.size/2, self.pos.y + self.size/2)
             diff = target - current
             
             if diff.length() > 0:
                 direction = diff.normalize()
-                # On applique l'accélération du grappin
+                # On tire le joueur vers le point d'accroche
                 self.vel += direction * HOOK_PULL_ACCEL
                 
-                # Cap de vitesse spécifique au grappin
+                # Cap de vitesse spécial grappin
                 if self.vel.length() > HOOK_MAX_SPEED:
                     self.vel = self.vel.normalize() * HOOK_MAX_SPEED
 
-        # 4. Friction et Gravité (Tick Fixe)
+        # 4. Friction et Gravité
         if on_ground:
-            self.vel.x *= FRICTION_GROUND
+            if self.vel.y >= 0:
+                self.vel.x *= FRICTION_GROUND
+                self.vel.y = 0
         else:
             self.vel.x *= FRICTION_AIR
             self.vel.y += GRAVITY
 
-        # 5. Cap de vitesse de marche (si on ne grappine pas)
+        # 5. Cap de vitesse standard (si pas de grappin)
         if not self.is_hooked:
             max_s = MAX_SPEED_GROUND if on_ground else MAX_SPEED_AIR
             if abs(self.vel.x) > max_s:
-                self.vel.x *= 0.9
+                self.vel.x *= 0.95 
 
-        # 6. Résolution des collisions (Verticale)
-        new_y = self.pos.y + self.vel.y
-        if not world.check_collision(self.pos.x, new_y) and \
-           not world.check_collision(self.pos.x + self.size, new_y) and \
-           not world.check_collision(self.pos.x, new_y + self.size) and \
-           not world.check_collision(self.pos.x + self.size, new_y + self.size):
-            self.pos.y = new_y
-        else:
-            if self.vel.y < 0: self.vel.y = 0.1
-            else: self.vel.y = 0
+        # 6. Résolution des collisions (Verticale puis Horizontale)
+        self.pos.y += self.vel.y
+        if self.vel.y > 0: # Descente
+            if world.check_collision(self.pos.x + 4, self.pos.y + self.size) or \
+               world.check_collision(self.pos.x + self.size - 4, self.pos.y + self.size):
+                self.pos.y = (int((self.pos.y + self.size) / TILE_SIZE) * TILE_SIZE) - self.size
+                self.vel.y = 0
+        elif self.vel.y < 0: # Montée
+            if world.check_collision(self.pos.x + 4, self.pos.y) or \
+               world.check_collision(self.pos.x + self.size - 4, self.pos.y):
+                self.pos.y = (int(self.pos.y / TILE_SIZE) + 1) * TILE_SIZE
+                self.vel.y = 0
 
-        # 7. Résolution des collisions (Horizontale)
-        new_x = self.pos.x + self.vel.x
-        if not world.check_collision(new_x, self.pos.y) and \
-           not world.check_collision(new_x + self.size, self.pos.y) and \
-           not world.check_collision(new_x, self.pos.y + self.size) and \
-           not world.check_collision(new_x + self.size, self.pos.y + self.size):
-            self.pos.x = new_x
-        else:
-            self.vel.x = 0
+        self.pos.x += self.vel.x
+        if self.vel.x > 0: # Droite
+            if world.check_collision(self.pos.x + self.size, self.pos.y + 4) or \
+               world.check_collision(self.pos.x + self.size, self.pos.y + self.size - 4):
+                self.pos.x = (int((self.pos.x + self.size) / TILE_SIZE) * TILE_SIZE) - self.size
+                self.vel.x = 0
+        elif self.vel.x < 0: # Gauche
+            if world.check_collision(self.pos.x, self.pos.y + 4) or \
+               world.check_collision(self.pos.x, self.pos.y + self.size - 4):
+                self.pos.x = (int(self.pos.x / TILE_SIZE) + 1) * TILE_SIZE
+                self.vel.x = 0
