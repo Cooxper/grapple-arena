@@ -4,6 +4,22 @@ from src.common.physics import Entity
 from src.common.world import World
 from src.common.settings import *
 
+def run(self):
+        while True:
+            # dt est le temps écoulé en millisecondes, on le divise par 1000 pour l'avoir en secondes
+            # On cap à FPS pour la fluidité d'affichage, mais la physique utilisera dt
+            dt = self.clock.tick(FPS) / 1000.0 
+
+            for event in pygame.event.get():
+                if event.type == pygame.QUIT:
+                    pygame.quit()
+                    sys.exit()
+                # ... garde ta gestion du grappin ici ...
+
+            # --- PASSAGE DU DT À LA PHYSIQUE ---
+            self.player.update_physics(self.world, dt)
+            
+
 class GameClient:
     def __init__(self):
         pygame.init()
