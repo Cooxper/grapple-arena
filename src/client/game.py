@@ -12,7 +12,7 @@ class GameClient:
         pygame.display.set_caption("Grapple Arena - Camera & KillBricks")
         self.clock = pygame.time.Clock()
         self.world = World()
-        self.player = Entity(100, 100)
+        self.player = Entity(PLAYER_START_POS[0], PLAYER_START_POS[1])
         
         self.state = "GAME"
         self.selected_tab = "Graphics"

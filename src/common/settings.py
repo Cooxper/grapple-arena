@@ -19,7 +19,7 @@ COLOR_KILL = (255, 50, 50) # Rouge pour les pièges
 
 # --- VALEURS PHYSIQUES DDNET ---
 GRAVITY = 0.5
-FRICTION_GROUND = 0.6 
+FRICTION_GROUND = 0.67
 FRICTION_AIR = 0.95      
 ACCEL_GROUND = 5.5
 ACCEL_AIR = 0.7         
@@ -35,23 +35,61 @@ COLOR_BG = (30, 30, 30)
 COLOR_PLAYER = (255, 50, 50)
 HOOK_COLOR = (200, 200, 200)
 
+pygame.init()
 
-# 0 = Vide, 1 = Mur, 2 = Kill Brick
-GAME_MAP = [
-    [1]*100,
-    [1] + [0]*98 + [1],
-    [1] + [0]*98 + [1],
-    [1] + [0]*10 + [1,1,1] + [0]*85 + [1],
-    [1] + [0]*98 + [1],
-    [1] + [0]*20 + [1,1,1,1] + [0]*74 + [1],
-    [1] + [0]*98 + [1],
-    [1] + [0]*35 + [1,1] + [0]*61 + [1],
-    [1] + [0]*98 + [1],
-    [1] + [0]*5 + [2,2,2,2,2] + [0]*88 + [1], # Piège au début
-    [1] + [0]*98 + [1],
-    [1] + [0]*50 + [1,1,1,1,1,1] + [0]*42 + [1],
-    [1] + [0]*98 + [1],
-    [1] + [0]*70 + [2,2,2,2,2,2,2,2] + [0]*20 + [1], # Long piège
-    [1] + [0]*98 + [1],
-    [1]*100,
-]
+def load_map_from_image(filename):
+    """
+    Lit une image PNG et la convertit en grille de jeu.
+    Noir (0,0,0) -> Mur (1)
+    Rouge (255,0,0) -> KillBrick (2)
+    Bleu (0,0,255) -> Spawn (0 + renvoie coords)
+    """
+    # Construction du chemin absolu pour éviter les erreurs
+    base_path = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+    map_path = os.path.join(base_path, 'assets', 'maps', filename)
+    
+    print(f"Chargement de la map depuis : {map_path}")
+    
+    try:
+        # Chargement de l'image via Pygame
+        img = pygame.image.load(map_path)
+    except pygame.error as e:
+        print(f"ERREUR : Impossible de charger l'image de map.\n{e}")
+        # Map par défaut pour éviter le crash
+        return [[1,1,1],[1,0,1],[1,1,1]], (1, 1)
+
+    width, height = img.get_size()
+    new_map = []
+    player_spawn = (100, 100) # Spawn par défaut
+    
+    # Légende des couleurs précises (RGB)
+    COLOR_WALL = (0, 0, 0)
+    COLOR_RESPAWN = (255, 0, 0)
+    COLOR_SPAWN_POINT = (0, 0, 255)
+
+    for y in range(height):
+        row = []
+        for x in range(width):
+            # Récupération de la couleur du pixel (x, y)
+            pixel_color = img.get_at((x, y))
+            r, g, b, a = pixel_color # On récupère les composantes
+
+            if (r, g, b) == COLOR_WALL:
+                row.append(1)
+            elif (r, g, b) == COLOR_RESPAWN:
+                row.append(2)
+            elif (r, g, b) == COLOR_SPAWN_POINT:
+                row.append(0) # Air
+                # Calcul des coordonnées réelles en pixels
+                player_spawn = (x * TILE_SIZE, y * TILE_SIZE)
+                print(f"Point de spawn détecté à : ({x}, {y})")
+            else:
+                row.append(0) # Air pour tout le reste (blanc, etc.)
+        new_map.append(row)
+        
+    print(f"Map chargée : {width}x{height} tuiles.")
+    return new_map, player_spawn
+
+# --- GENERATION DE LA MAP ET DU SPAWN ---
+# On charge 'map_level_1.png'
+GAME_MAP, PLAYER_START_POS = load_map_from_image('map_level_1.png')
