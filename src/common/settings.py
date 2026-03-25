@@ -3,6 +3,12 @@ WINDOW_WIDTH = 1600
 WINDOW_HEIGHT = 600
 FPS = 60
 
+# Couleurs style DDNet
+UI_BG = (25, 25, 35)      # Bleu nuit très foncé
+UI_PANEL = (40, 45, 60)   # Gris-bleu pour les panneaux
+UI_ACCENT = (0, 150, 255) # Bleu clair pour la sélection
+UI_TEXT = (220, 220, 220)
+
 # --- VALEURS PHYSIQUES DDNET ---
 GRAVITY = 0.5
 FRICTION_GROUND = 0.5    
