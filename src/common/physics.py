@@ -1,13 +1,11 @@
 import pygame
-from .settings import *
+from .settings import * # Importe GRAVITY, FRICTION, etc.
 
 class Entity:
     def __init__(self, x, y):
         self.pos = pygame.math.Vector2(x, y)
         self.vel = pygame.math.Vector2(0, 0)
         self.size = 28
-        
-        # Variables pour le grappin
         self.is_hooked = False
         self.hook_pos = pygame.math.Vector2(0, 0)
 
@@ -23,16 +21,14 @@ class Entity:
         self.vel.y = JUMP_FORCE
 
     def update_physics(self, world):
-        # Gravité et Friction
         self.vel.y += GRAVITY
         self.vel.x *= FRICTION
 
-        # Traction du grappin
         if self.is_hooked:
             direction = (self.hook_pos - self.pos).normalize()
             self.vel += direction * HOOK_PULL_FORCE
 
-        # Test collision Horizontale
+        # Collisions
         new_x = self.pos.x + self.vel.x
         if not world.check_collision(new_x, self.pos.y) and \
            not world.check_collision(new_x + self.size, self.pos.y):
@@ -40,7 +36,6 @@ class Entity:
         else:
             self.vel.x = 0
 
-        # Test collision Verticale
         new_y = self.pos.y + self.vel.y
         if not world.check_collision(self.pos.x, new_y) and \
            not world.check_collision(self.pos.x + self.size, new_y):
