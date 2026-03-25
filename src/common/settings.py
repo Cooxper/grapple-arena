@@ -3,17 +3,23 @@ WINDOW_WIDTH = 1600
 WINDOW_HEIGHT = 600
 FPS = 60
 
-# Couleurs KRX/DDNet (basées sur ta photo)
-UI_DARK_BG = (10, 15, 30)      # Fond bleu très sombre
-UI_NAV_BAR = (15, 20, 40)      # Barre du haut et menu droite
-UI_PANEL_BG = (45, 55, 90)     # Bleu-gris des cartes
-UI_ACCENT_BLUE = (100, 150, 255) # Bleu sélection
-UI_BUTTON_BG = (70, 85, 130)   # Fond des champs de saisie
+# --- COULEURS UI (KRX Style) ---
+UI_DARK_BG = (10, 15, 30)
+UI_NAV_BAR = (15, 20, 40)
+UI_PANEL_BG = (45, 55, 90)
+UI_ACCENT_BLUE = (100, 150, 255)
+UI_BUTTON_BG = (70, 85, 130)
 UI_TEXT = (230, 230, 230)
+
+# --- COULEURS JEU ---
+COLOR_BG = (20, 20, 25)
+COLOR_PLAYER = (255, 50, 50)
+HOOK_COLOR = (200, 200, 200)
+COLOR_KILL = (255, 50, 50) # Rouge pour les pièges
 
 # --- VALEURS PHYSIQUES DDNET ---
 GRAVITY = 0.5
-FRICTION_GROUND = 0.5    
+FRICTION_GROUND = 0.6 
 FRICTION_AIR = 0.95      
 ACCEL_GROUND = 5.5
 ACCEL_AIR = 0.7         
