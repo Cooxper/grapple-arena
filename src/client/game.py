@@ -91,7 +91,7 @@ class GameClient:
                 start_p = (self.player.pos.x + self.player.size/2, 
                            self.player.pos.y + self.player.size/2)
                 # On dessine vers le point d'impact enregistré
-                pygame.draw.line(self.screen, HOPF_COLOR, start_p, self.player.hook_pos, 2)
+                pygame.draw.line(self.screen, HOOK_COLOR, start_p, self.player.hook_pos, 2)
 
             # Dessin du joueur
             pygame.draw.rect(self.screen, COLOR_PLAYER, 
