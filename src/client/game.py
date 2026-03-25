@@ -14,41 +14,35 @@ class GameClient:
         self.world = World()
         self.player = Entity(100, 100)
         
-        # --- ÉTATS DU MENU ---
         self.state = "GAME"
         self.selected_tab = "Graphics"
         self.show_fps = True
-        
-        # --- CONFIGURATION DU SÉLECTEUR DE FPS ---
-        self.fps_options = [60, 120, 180, 240, 999] # 999 = Unlimited
+        self.fps_options = [60, 120, 180, 240, 999]
         self.fps_idx = 0 
         self.current_fps = self.fps_options[self.fps_idx]
         self.current_gravity = GRAVITY
 
     def draw_game(self, alpha):
-        """Affiche le gameplay avec interpolation pour une fluidité maximale"""
-        # 1. Dessin de la Map
+        # 1. Map
         for row_index, row in enumerate(GAME_MAP):
             for col_index, tile in enumerate(row):
                 if tile == 1:
                     pygame.draw.rect(self.screen, (100, 100, 100), 
-                                     (col_index * TILE_SIZE, row_index * TILE_SIZE, 
-                                      TILE_SIZE - 1, TILE_SIZE - 1))
+                                     (col_index * TILE_SIZE, row_index * TILE_SIZE, TILE_SIZE - 1, TILE_SIZE - 1))
 
-        # 2. CALCUL DE LA POSITION INTERPOLÉE (Le secret des 500 FPS)
-        # On calcule la position visuelle entre l'ancienne et la nouvelle position physique
+        # 2. Position fluide (Interpolation)
         interp_x = self.player.old_pos.x + (self.player.pos.x - self.player.old_pos.x) * alpha
         interp_y = self.player.old_pos.y + (self.player.pos.y - self.player.old_pos.y) * alpha
 
-        # 3. Dessin du grappin (utilisant les coordonnées fluides)
+        # 3. Grappin
         if self.player.is_hooked:
             p_center = (interp_x + self.player.size/2, interp_y + self.player.size/2)
             pygame.draw.line(self.screen, HOOK_COLOR, p_center, self.player.hook_pos, 2)
 
-        # 4. Dessin du joueur (sur la position fluide)
+        # 4. Joueur
         pygame.draw.rect(self.screen, COLOR_PLAYER, (interp_x, interp_y, self.player.size, self.player.size))
 
-        # 5. Affichage des FPS
+        # 5. FPS
         if self.show_fps:
             fps_val = int(self.clock.get_fps())
             font = pygame.font.SysFont("Arial", 14, bold=True)
@@ -56,42 +50,21 @@ class GameClient:
             self.screen.blit(txt, (10, 10))
 
     def draw_settings_menu(self):
-        """Interface KRX avec sélecteur défilant"""
         self.screen.fill(UI_DARK_BG)
-        
-        # 1. Barre de Navigation Haute
+        # Navigation
         pygame.draw.rect(self.screen, UI_NAV_BAR, (0, 0, WINDOW_WIDTH, 40))
-        nav_font = pygame.font.SysFont("Arial", 14, bold=True)
-        nav_tabs = ["Aimbot", "Misc", "Visuals & HUD", "Avoid", "TAS", "Settings"]
-        for i, tab in enumerate(nav_tabs):
-            color = UI_ACCENT_BLUE if tab == "Settings" else UI_TEXT
-            txt = nav_font.render(tab, True, color)
-            self.screen.blit(txt, (80 + i * 110, 12))
-
-        # 2. Menu Vertical de Droite
+        # Menu droite
         right_w = 180
         pygame.draw.rect(self.screen, UI_NAV_BAR, (WINDOW_WIDTH - right_w, 40, right_w, WINDOW_HEIGHT - 40))
-        side_font = pygame.font.SysFont("Arial", 16)
-        side_tabs = ["General", "Player", "Appearance", "Controls", "Graphics", "Sound"]
-        for i, tab in enumerate(side_tabs):
-            color = UI_ACCENT_BLUE if self.selected_tab == tab else (150, 150, 160)
-            txt = side_font.render(tab, True, color)
-            self.screen.blit(txt, (WINDOW_WIDTH - right_w + 30, 80 + i * 40))
-
-        # 3. Contenu
+        
         if self.selected_tab == "Graphics":
             self.draw_card("Performance", 50, 70, 400, 300)
-            fps_display = "Unlimited" if self.current_fps == 999 else str(self.current_fps)
-            self.draw_setting_row("Max FPS", fps_display, 50, 130)
+            fps_label = "Unlimited" if self.current_fps == 999 else str(self.current_fps)
+            self.draw_setting_row("Max FPS", fps_label, 50, 130)
             self.draw_setting_row("Show FPS", "ON" if self.show_fps else "OFF", 50, 170)
-        
-        elif self.selected_tab == "General":
-            self.draw_card("Physique", 50, 70, 400, 300)
-            self.draw_setting_row("Gravité", f"{self.current_gravity:.2f}", 50, 130)
 
     def draw_card(self, title, x, y, w, h):
-        rect = pygame.Rect(x, y, w, h)
-        pygame.draw.rect(self.screen, UI_PANEL_BG, rect, border_radius=10)
+        pygame.draw.rect(self.screen, UI_PANEL_BG, (x, y, w, h), border_radius=10)
         txt = pygame.font.SysFont("Arial", 20, bold=True).render(title, True, (255, 255, 255))
         self.screen.blit(txt, (x + 20, y + 15))
 
@@ -104,7 +77,6 @@ class GameClient:
         self.screen.blit(v_txt, (x + 170, y - 2))
 
     def run(self):
-        """Boucle principale avec interpolation intégrée"""
         tick_rate = 1.0 / 60.0
         accumulator = 0.0
         last_time = time.time()
@@ -119,13 +91,11 @@ class GameClient:
             for event in pygame.event.get():
                 if event.type == pygame.QUIT:
                     pygame.quit(); sys.exit()
-                
                 if event.type == pygame.KEYDOWN:
                     if event.key == pygame.K_ESCAPE:
                         self.state = "SETTINGS" if self.state == "GAME" else "GAME"
                     if self.state == "GAME" and event.key in [pygame.K_z, pygame.K_SPACE]:
                         jump_requested = True
-
                 if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
                     m_pos = pygame.mouse.get_pos()
                     if self.state == "GAME":
@@ -141,29 +111,22 @@ class GameClient:
                                 self.current_fps = self.fps_options[self.fps_idx]
                             if 165 < m_pos[1] < 195 and (50 + 160) < m_pos[0] < (50 + 160 + 180):
                                 self.show_fps = not self.show_fps
-
                 if event.type == pygame.MOUSEBUTTONUP and event.button == 1:
                     if self.state == "GAME": self.player.is_hooked = False
 
-            # --- LOGIQUE PHYSIQUE FIXE ---
             if self.state == "GAME":
                 while accumulator >= tick_rate:
-                    keys = pygame.key.get_pressed()
-                    inputs = {'left': keys[pygame.K_q], 'right': keys[pygame.K_d], 'jump': jump_requested}
-                    self.player.update_physics(self.world, inputs)
+                    self.player.update_physics(self.world, {'left': pygame.key.get_pressed()[pygame.K_q], 'right': pygame.key.get_pressed()[pygame.K_d], 'jump': jump_requested})
                     jump_requested = False
                     accumulator -= tick_rate
-                
-                # --- CALCUL DE L'ALPHA POUR LE RENDU ---
                 alpha = accumulator / tick_rate
             else:
-                accumulator = 0
+                accumulator = 0qqq
                 alpha = 0
 
-            # --- RENDU ---
             if self.state == "GAME":
                 self.screen.fill(COLOR_BG)
-                self.draw_game(alpha) # On passe l'alpha ici
+                self.draw_game(alpha)
             else:
                 self.draw_settings_menu()
             
