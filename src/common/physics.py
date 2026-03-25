@@ -4,10 +4,9 @@ from .settings import *
 class Entity:
     def __init__(self, x, y):
         self.pos = pygame.math.Vector2(x, y)
+        self.old_pos = pygame.math.Vector2(x, y) # Ajouté pour l'interpolation
         self.vel = pygame.math.Vector2(0, 0)
         self.size = 28
-        self.is_hooked = False
-        self.hook_pos = pygame.math.Vector2(0, 0)
 
     def jump(self, on_ground):
         if on_ground:
@@ -44,6 +43,10 @@ class Entity:
         self.is_hooked = False
 
     def update_physics(self, world, input_data):
+        # --- AJOUT POUR L'INTERPOLATION ---
+        # On sauvegarde la position avant de calculer la nouvelle
+        self.old_pos = pygame.math.Vector2(self.pos.x, self.pos.y)
+
         # 1. Détection du sol
         on_ground = world.check_collision(self.pos.x + 4, self.pos.y + self.size + 1) or \
                     world.check_collision(self.pos.x + self.size - 4, self.pos.y + self.size + 1)
@@ -66,17 +69,11 @@ class Entity:
             target = pygame.math.Vector2(self.hook_pos)
             current = pygame.math.Vector2(self.pos.x + self.size/2, self.pos.y + self.size/2)
             diff = target - current
-            dist = diff.length()
             
-            if dist > 0:
+            if diff.length() > 0:
                 direction = diff.normalize()
-                
-                # Dans DDNet, la force est plus subtile. 
-                # On applique une accélération vers le centre.
                 self.vel += direction * HOOK_PULL_ACCEL
                 
-                # ASTUCE : Pour le côté circulaire, on ne doit PAS freiner la 
-                # vitesse perpendiculaire au grappin. On laisse l'inertie agir.
                 if self.vel.length() > HOOK_MAX_SPEED:
                     self.vel = self.vel.normalize() * HOOK_MAX_SPEED
 
@@ -86,7 +83,6 @@ class Entity:
                 self.vel.x *= FRICTION_GROUND
                 self.vel.y = 0
         else:
-            # En l'air, on garde 95% de la vitesse (essentiel pour le cercle !)
             self.vel.x *= FRICTION_AIR
             self.vel.y += GRAVITY
 
@@ -94,7 +90,7 @@ class Entity:
         if not self.is_hooked:
             max_s = MAX_SPEED_GROUND if on_ground else MAX_SPEED_AIR
             if abs(self.vel.x) > max_s:
-                self.vel.x *= 0.95 
+                self.vel.x *= 0.95
 
         # 7. Collisions (Verticale puis Horizontale)
         self.pos.y += self.vel.y
