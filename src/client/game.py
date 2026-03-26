@@ -13,8 +13,8 @@ class GameClient:
         self.clock = pygame.time.Clock()
         self.world = World()
         self.player = Entity(PLAYER_START_POS[0], PLAYER_START_POS[1])
-        
         self.state = "GAME"
+        self.camera_zoom = 1.0
         self.selected_tab = "Graphics"
         self.show_fps = True
         self.fps_options = [60, 120, 180, 240, 999]

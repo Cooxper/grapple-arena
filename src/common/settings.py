@@ -38,46 +38,55 @@ COLOR_BG = (30, 30, 30)
 COLOR_PLAYER = (255, 50, 50)
 HOOK_COLOR = (200, 200, 200)
 
-pygame.init()
-
 def load_map_from_image(filename):
     base_path = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
     map_path = os.path.join(base_path, 'assets', 'maps', filename)
     
     if not os.path.exists(map_path):
-        print(f"Fichier {filename} introuvable.")
+        print(f"ERREUR : {map_path} introuvable.")
         return [[1]*50, [1]+[0]*48+[1], [1]*50], (100, 100)
 
-    img = pygame.image.load(map_path).convert_alpha()
+    img = pygame.image.load(map_path)
     width, height = img.get_size()
     new_map = []
     
-    # On définit un spawn par défaut (haut-gauche) au cas où il n'y a pas de bleu
-    player_spawn = (64, 64) 
-    found_blue = False
+    # Spawn par défaut (haut-gauche)
+    player_spawn = (128, 128) 
+    found_spawn = False
 
     for y in range(height):
         row = []
         for x in range(width):
             r, g, b, a = img.get_at((x, y))
-            # Noir = Mur
-            if r < 50 and g < 50 and b < 50 and a > 200:
+            
+            # --- CORRECTION DE LA LOGIQUE DES COULEURS ---
+            
+            # 1. Noir PUR -> C'est un MUR
+            # On tolère un noir très léger, mais pas le gris foncé
+            if r < 15 and g < 15 and b < 15:
                 row.append(1)
-            # Rouge = Mort
-            elif r > 200 and g < 100 and b < 100:
+            
+            # 2. Rouge PUR -> C'est de la MORT (Kill Brick)
+            # Dominance rouge claire, pas un rouge-brun
+            elif r > 200 and g < 50 and b < 50:
                 row.append(2)
-            # Bleu = Spawn
-            elif r < 100 and g < 100 and b > 200:
+            
+            # 3. Spawn point par détection d'air
+            # Si aucun pixel bleu n'est trouvé, on cherche une zone d'air
+            elif not found_spawn and r > 100 and g > 100 and b > 100:
+                # On a trouvé de l'air ! On spawn ici
                 row.append(0)
                 player_spawn = (x * TILE_SIZE, y * TILE_SIZE)
-                found_blue = True
+                found_spawn = True
+                print(f"Note : Spawn détecté dans l'air à ({x}, {y})")
+
+            # 4. Tout le reste est de l'AIR (ton fond gris)
             else:
                 row.append(0)
         new_map.append(row)
     
-    if not found_blue:
-        print("Pas de pixel bleu trouvé : spawn automatique en (64, 64)")
+    if not found_spawn:
+        print("Note : Pas de zone d'air trouvée, spawn en (128, 128)")
     
+    print(f"Succès : Map chargée ({width}x{height} tuiles).")
     return new_map, player_spawn
-
-GAME_MAP, PLAYER_START_POS = load_map_from_image('map_level_1.png')
