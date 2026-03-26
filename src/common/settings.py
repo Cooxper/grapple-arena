@@ -84,9 +84,12 @@ def load_map_from_image(filename):
             else:
                 row.append(0)
         new_map.append(row)
-    
     if not found_spawn:
         print("Note : Pas de zone d'air trouvée, spawn en (128, 128)")
     
     print(f"Succès : Map chargée ({width}x{height} tuiles).")
     return new_map, player_spawn
+
+pygame.init()
+# On crée les variables que world.py et game.py essaient d'importer
+GAME_MAP, PLAYER_START_POS = load_map_from_image('map_level_1.png')
